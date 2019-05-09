@@ -166,6 +166,42 @@ describe("FileEnumerator", () => {
             });
         });
 
+        describe("https://github.com/eslint/eslint/issues/11684", () => {
+            const root = path.join(os.tmpdir(), "eslint/file-enumerator/11684");
+            const files = {
+                ".eslintignore": "*\n!/dir/\n!*.js",
+                ".eslintrc.yml": "",
+                "dir/test.js": "",
+                "test.js": "",
+                "test.json": ""
+            };
+            const { FileEnumerator } = defineFileEnumeratorWithInMemoryFileSystem({ cwd: () => root, files });
+
+            /** @type {FileEnumerator} */
+            let enumerator;
+
+            beforeEach(() => {
+                enumerator = new FileEnumerator();
+            });
+
+            it("unignoring declaration of a file should work.", () => {
+                const actual = Array.from(enumerator.iterateFiles("**/*.js"))
+                    .filter(e => !e.ignored)
+                    .map(e => e.filePath);
+
+                assert.deepStrictEqual(actual, [
+                    path.resolve(root, "dir/test.js"),
+                    path.resolve(root, "test.js")
+                ]);
+            });
+
+            it("should ignore others.", () => {
+                assert.throws(() => {
+                    Array.from(enumerator.iterateFiles("**/*.json"));
+                }, /All files matched by '\*\*\/\*\.json' are ignored/u);
+            });
+        });
+
         // This group moved from 'tests/lib/util/glob-utils.js' when refactoring to keep the cumulated test cases.
         describe("with 'tests/fixtures/glob-utils' files", () => {
             const { FileEnumerator } = require("../../../lib/cli-engine/file-enumerator");
